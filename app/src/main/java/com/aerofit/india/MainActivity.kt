@@ -18,6 +18,7 @@ import com.aerofit.india.di.AppModule
 import com.aerofit.india.domain.service.GridCalculator
 import com.aerofit.india.domain.usecase.AssessRunningSuitabilityUseCase
 import com.aerofit.india.domain.usecase.GetAqiForCurrentLocationUseCase
+// Note: DashboardScreen is now imported from 'ui.screens'
 import com.aerofit.india.ui.screens.DashboardScreen
 import com.aerofit.india.ui.MainViewModel
 import com.aerofit.india.ui.ViewModelFactory
@@ -29,6 +30,7 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
+    // Manual Dependency Injection
     private val viewModel: MainViewModel by viewModels {
         val repository = AppModule.provideAqiRepository(applicationContext)
         val getAqiUseCase = GetAqiForCurrentLocationUseCase(repository, GridCalculator)

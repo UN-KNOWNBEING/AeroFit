@@ -11,7 +11,7 @@ class AssessRunningSuitabilityUseCase {
 
         return when {
             aqi <= 100 -> Assessment(true, "Great conditions for a run!")
-            // Checks the correct property 'hasRespiratoryIssues'
+            // Checks 'hasRespiratoryIssues'
             aqi <= 200 -> Assessment(!user.hasRespiratoryIssues, if(user.hasRespiratoryIssues) "Risky for sensitive groups" else "Moderate air quality")
             else -> Assessment(false, "Air quality is dangerous. Stay indoors.")
         }

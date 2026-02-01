@@ -1,23 +1,22 @@
 package com.aerofit.india.domain.model.geo
 
 data class BoundingBox(
-    val southWest: Coordinate,
-    val northEast: Coordinate
+    val minLat: Double,
+    val minLon: Double,
+    val maxLat: Double,
+    val maxLon: Double
 ) {
-    init {
-        require(southWest.latitude <= northEast.latitude) {
-            "SouthWest latitude must be <= NorthEast latitude"
-        }
+    // Calculus logic using simple Doubles
+    fun center(): Coordinate {
+        return Coordinate(
+            lat = (minLat + maxLat) / 2.0,
+            lon = (minLon + maxLon) / 2.0
+        )
     }
 
-    val center: Coordinate
-        get() = Coordinate(
-            latitude = (southWest.latitude + northEast.latitude) / 2.0,
-            longitude = (southWest.longitude + northEast.longitude) / 2.0
-        )
-
+    // Logic to check if a point is inside the box
     fun contains(point: Coordinate): Boolean {
-        return point.latitude in southWest.latitude..northEast.latitude &&
-                point.longitude in southWest.longitude..northEast.longitude
+        return point.lat >= minLat && point.lat <= maxLat &&
+                point.lon >= minLon && point.lon <= maxLon
     }
 }

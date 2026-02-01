@@ -7,8 +7,7 @@ data class AqiSnapshot(
     val timestamp: Long
 )
 
-// This Enum belongs HERE.
-// If you have a separate AqiCategory.kt file, DELETE IT to stop the "Ambiguous" errors.
+// This Enum MUST be here.
 enum class AqiCategory(val label: String, val colorHex: String) {
     Good("Good", "#00B050"),
     Satisfactory("Satisfactory", "#92D050"),

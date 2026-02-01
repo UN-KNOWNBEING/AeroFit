@@ -11,11 +11,10 @@ object GridCalculator {
         val lonIndex = floor(lon / TILE_SIZE_DEGREES).toInt()
         val tileId = "${latIndex}_${lonIndex}"
 
-        // Calculate center
         val centerLat = (latIndex * TILE_SIZE_DEGREES) + (TILE_SIZE_DEGREES / 2)
         val centerLon = (lonIndex * TILE_SIZE_DEGREES) + (TILE_SIZE_DEGREES / 2)
 
-        // Matches the SIMPLE constructor in File 1 (No BoundingBox needed)
+        // Now this works because GridCell matches this constructor
         return GridCell(tileId, centerLat, centerLon, null)
     }
 }

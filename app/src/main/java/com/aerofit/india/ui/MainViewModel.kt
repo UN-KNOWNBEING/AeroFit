@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-// State is defined here. Ensure this is NOT in MainActivity.
+// State is defined here.
 sealed interface DashboardUiState {
     object Loading : DashboardUiState
     data class Success(

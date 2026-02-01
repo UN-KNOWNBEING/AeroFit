@@ -6,7 +6,4 @@ data class GridCell(
     val id: String,
     val bounds: BoundingBox,
     val aqiSnapshot: AqiSnapshot? = null
-) {
-    val center: Coordinate
-        get() = bounds.center
-}
+)

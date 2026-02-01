@@ -1,8 +1,8 @@
 package com.aerofit.india.domain.repository
 
 import com.aerofit.india.domain.model.aqi.AqiSnapshot
-import kotlinx.coroutines.flow.Flow
 
 interface IAqiRepository {
-    fun observeAqiForCell(cellId: String): Flow<AqiSnapshot>
+    // Only ONE simple function needed for the app to run
+    suspend fun getAqiForLocation(lat: Double, lon: Double, tileId: String): Result<AqiSnapshot>
 }

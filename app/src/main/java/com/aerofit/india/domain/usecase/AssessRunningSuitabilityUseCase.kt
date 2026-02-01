@@ -2,23 +2,18 @@ package com.aerofit.india.domain.usecase
 
 import com.aerofit.india.domain.model.geo.GridCell
 import com.aerofit.india.domain.model.user.UserProfile
-import com.aerofit.india.domain.service.HealthAdviceService
 
-class AssessRunningSuitabilityUseCase(
-    private val healthAdviceService: HealthAdviceService
-) {
-    data class Assessment(
-        val isSafe: Boolean,
-        val message: String,
-        val colorHex: String
-    )
+data class Assessment(val isSafe: Boolean, val message: String)
 
+class AssessRunningSuitabilityUseCase {
     operator fun invoke(user: UserProfile, cell: GridCell): Assessment {
-        val snapshot = cell.aqiSnapshot ?: return Assessment(false, "Data unavailable", "#888888")
+        val aqi = cell.aqiSnapshot?.overallAqi ?: return Assessment(false, "No Data")
 
-        val msg = healthAdviceService.generateAdvice(snapshot.category, user)
-        val safe = snapshot.category.max <= 200
-
-        return Assessment(safe, msg, snapshot.category.colorHex)
+        return when {
+            aqi <= 100 -> Assessment(true, "Great conditions for a run!")
+            // Checks the correct property 'hasRespiratoryIssues'
+            aqi <= 200 -> Assessment(!user.hasRespiratoryIssues, if(user.hasRespiratoryIssues) "Risky for sensitive groups" else "Moderate air quality")
+            else -> Assessment(false, "Air quality is dangerous. Stay indoors.")
+        }
     }
 }

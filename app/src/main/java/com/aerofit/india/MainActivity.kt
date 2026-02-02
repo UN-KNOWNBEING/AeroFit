@@ -3,34 +3,35 @@ package com.aerofit.india
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Looper
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+// --- CRITICAL IMPORTS FOR MODIFIER ---
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+// -------------------------------------
 
 import com.aerofit.india.di.AppModule
 import com.aerofit.india.domain.service.GridCalculator
 import com.aerofit.india.domain.usecase.AssessRunningSuitabilityUseCase
 import com.aerofit.india.domain.usecase.GetAqiForCurrentLocationUseCase
-// Note: DashboardScreen is now imported from 'ui.screens'
-import com.aerofit.india.ui.screens.DashboardScreen
+import com.aerofit.india.ui.AeroFitApp
 import com.aerofit.india.ui.MainViewModel
 import com.aerofit.india.ui.ViewModelFactory
 import com.aerofit.india.ui.theme.AeroFitTheme
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.*
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var locationCallback: LocationCallback
 
-    // Manual Dependency Injection
     private val viewModel: MainViewModel by viewModels {
         val repository = AppModule.provideAqiRepository(applicationContext)
         val getAqiUseCase = GetAqiForCurrentLocationUseCase(repository, GridCalculator)
@@ -41,41 +42,57 @@ class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
-        if (isGranted) getCurrentLocation() else Toast.makeText(this, "Location needed", Toast.LENGTH_LONG).show()
+        if (isGranted) startLocationUpdates() else Toast.makeText(this, "Permission Denied", Toast.LENGTH_SHORT).show()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        checkPermissionsAndFetchLocation()
+
+        // Setup Live Location Callback
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                for (location in locationResult.locations) {
+                    viewModel.updateLiveLocation(location.latitude, location.longitude)
+                }
+            }
+        }
+
+        checkPermissionsAndStart()
 
         setContent {
             AeroFitTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(), // This requires androidx.compose.ui.Modifier
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    DashboardScreen(viewModel = viewModel)
+                    AeroFitApp(viewModel = viewModel)
                 }
             }
         }
     }
 
-    private fun checkPermissionsAndFetchLocation() {
+    private fun checkPermissionsAndStart() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            getCurrentLocation()
+            startLocationUpdates()
         } else {
             requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
     }
 
-    private fun getCurrentLocation() {
-        try {
-            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                if (location != null) {
-                    viewModel.loadDataForLocation(location.latitude, location.longitude)
-                }
-            }
-        } catch (e: SecurityException) { }
+    @android.annotation.SuppressLint("MissingPermission")
+    private fun startLocationUpdates() {
+        val locationRequest = LocationRequest.create().apply {
+            interval = 5000 // Update every 5 seconds
+            fastestInterval = 2000
+            priority = Priority.PRIORITY_HIGH_ACCURACY
+        }
+        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // fusedLocationClient.removeLocationUpdates(locationCallback) // Optional battery saving
     }
 }

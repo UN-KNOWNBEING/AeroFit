@@ -75,4 +75,11 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+
+    //maps google
+    implementation("com.google.maps.android:maps-compose:4.3.3")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+
+    //maps  osmdroid
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
 }

@@ -2,6 +2,6 @@ package com.aerofit.india.domain.model.user
 
 data class UserProfile(
     val id: String,
-    val hasRespiratoryIssues: Boolean, // FIX: Matches the error log requirement
+    val hasAsthma: Boolean, // Standardized Name (Fixed)
     val age: Int
 )

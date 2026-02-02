@@ -8,9 +8,9 @@ import kotlinx.coroutines.flow.flow
 
 class GetAqiForCurrentLocationUseCase(
     private val repository: IAqiRepository,
-    private val gridCalculator: GridCalculator // Expects the object
+    private val gridCalculator: GridCalculator
 ) {
-    // Accepts Double (lat, lon) directly to fix Type Mismatch
+    // Accepts Double (lat, lon) directly
     suspend operator fun invoke(lat: Double, lon: Double): Flow<Result<GridCell>> = flow {
         val cell = gridCalculator.getCellForLocation(lat, lon)
         val result = repository.getAqiForLocation(lat, lon, cell.id)

@@ -2,11 +2,13 @@ package com.aerofit.india.domain.model.geo
 
 import com.aerofit.india.domain.model.aqi.AqiSnapshot
 
-// We keep this simple (using Doubles) to match the GridCalculator.
-// I removed 'data class Coordinate' from here to fix the Redeclaration error.
+// SIMPLE VERSION: No BoundingBox. Just Center Lat/Lon.
 data class GridCell(
     val id: String,
     val centerLat: Double,
     val centerLon: Double,
     val aqiSnapshot: AqiSnapshot? = null
 )
+
+// Helper class if needed elsewhere
+data class Coordinate(val lat: Double, val lon: Double)

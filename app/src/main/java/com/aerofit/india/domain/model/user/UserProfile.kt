@@ -2,6 +2,7 @@ package com.aerofit.india.domain.model.user
 
 data class UserProfile(
     val id: String,
-    val hasAsthma: Boolean, // Standardized name
+    // FIX: Renamed from 'hasAsthma' to 'hasRespiratoryIssues' to match MainViewModel
+    val hasRespiratoryIssues: Boolean,
     val age: Int
 )

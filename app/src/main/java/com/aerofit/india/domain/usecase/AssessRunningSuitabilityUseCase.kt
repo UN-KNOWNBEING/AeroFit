@@ -3,17 +3,29 @@ package com.aerofit.india.domain.usecase
 import com.aerofit.india.domain.model.geo.GridCell
 import com.aerofit.india.domain.model.user.UserProfile
 
-data class Assessment(val isSafe: Boolean, val message: String)
+// FIX: Added potentialPoints and achievementUnlocked back
+data class Assessment(
+    val isSafe: Boolean,
+    val message: String,
+    val potentialPoints: Int,
+    val achievementUnlocked: String? = null
+)
 
 class AssessRunningSuitabilityUseCase {
     operator fun invoke(user: UserProfile, cell: GridCell): Assessment {
-        val aqi = cell.aqiSnapshot?.overallAqi ?: return Assessment(false, "No Data")
+        val aqi = cell.aqiSnapshot?.overallAqi ?: return Assessment(false, "No Data", 0)
 
         return when {
-            aqi <= 100 -> Assessment(true, "Great conditions for a run!")
-            // Uses 'hasAsthma' to match UserProfile
-            aqi <= 200 -> Assessment(!user.hasAsthma, if(user.hasAsthma) "Risky for sensitive groups" else "Moderate air quality")
-            else -> Assessment(false, "Air quality is dangerous. Stay indoors.")
+            aqi <= 50 -> Assessment(true, "Pure Air! Maximum Points.", 100, "🌿 Forest Breather")
+            aqi <= 100 -> Assessment(true, "Good conditions. Go for it!", 80)
+            aqi <= 200 -> {
+                if (user.hasRespiratoryIssues) {
+                    Assessment(false, "High risk for you. Low reward.", 20)
+                } else {
+                    Assessment(true, "Moderate pollution. Reduced points.", 50)
+                }
+            }
+            else -> Assessment(false, "Hazardous! Minimal survival points.", 10, "😷 Iron Lung")
         }
     }
 }

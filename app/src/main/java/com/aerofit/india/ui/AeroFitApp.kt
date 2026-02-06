@@ -1,6 +1,5 @@
 package com.aerofit.india.ui
 
-// --- CRITICAL IMPORTS FOR COMPOSE ---
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -10,8 +9,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-// ------------------------------------
-
 import com.aerofit.india.ui.screens.DashboardScreen
 import com.aerofit.india.ui.screens.LoginScreen
 import com.aerofit.india.ui.screens.OsmMapScreen
@@ -19,12 +16,15 @@ import com.aerofit.india.ui.screens.SettingsScreen
 
 @Composable
 fun AeroFitApp(viewModel: MainViewModel) {
+    // Watch the login state
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
     var currentScreen by remember { mutableStateOf(0) }
 
     if (!isLoggedIn) {
+        // 1. Show Login if not authenticated
         LoginScreen(viewModel = viewModel)
     } else {
+        // 2. Show Main App if authenticated
         Scaffold(
             bottomBar = {
                 NavigationBar(
@@ -53,7 +53,7 @@ fun AeroFitApp(viewModel: MainViewModel) {
             }
         ) { innerPadding ->
             Surface(
-                modifier = Modifier.padding(innerPadding), // Uses Modifier import
+                modifier = Modifier.padding(innerPadding),
                 color = MaterialTheme.colorScheme.background
             ) {
                 when (currentScreen) {

@@ -4,8 +4,6 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,14 +26,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
 
     // We need to fetch age from the user profile safely
     var age by remember { mutableStateOf("") }
-    var hasAsthma by remember { mutableStateOf(false) }
+    var hasRespiratoryIssues by remember { mutableStateOf(false) }
 
     // Populate fields ONCE when screen loads with current data
     LaunchedEffect(Unit) {
         if (uiState is DashboardUiState.Success) {
             val user = (uiState as DashboardUiState.Success).userProfile
             age = user.age.toString()
-            hasAsthma = user.hasAsthma
+            hasRespiratoryIssues = user.hasRespiratoryIssues
         }
     }
 
@@ -93,8 +91,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 ) {
                     Text("Respiratory Issues (Asthma)", color = Color.White, modifier = Modifier.weight(1f))
                     Switch(
-                        checked = hasAsthma,
-                        onCheckedChange = { hasAsthma = it },
+                        checked = hasRespiratoryIssues,
+                        onCheckedChange = { hasRespiratoryIssues = it },
                         colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF00E676))
                     )
                 }
@@ -106,7 +104,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
         Button(
             onClick = {
                 if (name.isNotBlank() && age.isNotBlank()) {
-                    viewModel.updateProfile(name, age, hasAsthma)
+                    viewModel.updateProfile(name, age, hasRespiratoryIssues)
                     Toast.makeText(context, "Profile Updated", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(context, "Name and Age cannot be empty", Toast.LENGTH_SHORT).show()

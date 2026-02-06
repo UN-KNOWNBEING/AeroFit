@@ -18,7 +18,8 @@ import com.aerofit.india.di.AppModule
 import com.aerofit.india.domain.service.GridCalculator
 import com.aerofit.india.domain.usecase.AssessRunningSuitabilityUseCase
 import com.aerofit.india.domain.usecase.GetAqiForCurrentLocationUseCase
-import com.aerofit.india.ui.screens.DashboardScreen
+// FIX: Import AeroFitApp instead of specific screens
+import com.aerofit.india.ui.AeroFitApp
 import com.aerofit.india.ui.MainViewModel
 import com.aerofit.india.ui.ViewModelFactory
 import com.aerofit.india.ui.theme.AeroFitTheme
@@ -29,7 +30,6 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
-    // Manual Dependency Injection
     private val viewModel: MainViewModel by viewModels {
         val repository = AppModule.provideAqiRepository(applicationContext)
         val getAqiUseCase = GetAqiForCurrentLocationUseCase(repository, GridCalculator)
@@ -54,7 +54,8 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    DashboardScreen(viewModel = viewModel)
+                    // FIX: This now calls the Navigation Hub, not just the Dashboard
+                    AeroFitApp(viewModel = viewModel)
                 }
             }
         }

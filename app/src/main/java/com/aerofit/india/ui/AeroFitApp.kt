@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.aerofit.india.ui.screens.AchievementsScreen
 import com.aerofit.india.ui.screens.DashboardScreen
 import com.aerofit.india.ui.screens.LoginScreen
 import com.aerofit.india.ui.screens.OsmMapScreen
@@ -16,15 +17,14 @@ import com.aerofit.india.ui.screens.SettingsScreen
 
 @Composable
 fun AeroFitApp(viewModel: MainViewModel) {
-    // Watch the login state
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
-    var currentScreen by remember { mutableStateOf(0) }
+
+    // 0=Dash, 1=Map, 2=Profile, 3=Achievements (Hidden from bottom bar)
+    var currentScreen by remember { mutableIntStateOf(0) }
 
     if (!isLoggedIn) {
-        // 1. Show Login if not authenticated
         LoginScreen(viewModel = viewModel)
     } else {
-        // 2. Show Main App if authenticated
         Scaffold(
             bottomBar = {
                 NavigationBar(
@@ -44,8 +44,8 @@ fun AeroFitApp(viewModel: MainViewModel) {
                         onClick = { currentScreen = 1 }
                     )
                     NavigationBarItem(
-                        icon = { Icon(Icons.Default.Person, contentDescription = "Settings") },
-                        label = { Text("Settings") },
+                        icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
+                        label = { Text("Profile") },
                         selected = currentScreen == 2,
                         onClick = { currentScreen = 2 }
                     )
@@ -57,9 +57,11 @@ fun AeroFitApp(viewModel: MainViewModel) {
                 color = MaterialTheme.colorScheme.background
             ) {
                 when (currentScreen) {
-                    0 -> DashboardScreen(viewModel)
+                    // Pass the callback to switch to Achievements (Screen 3)
+                    0 -> DashboardScreen(viewModel, onRankClick = { currentScreen = 3 })
                     1 -> OsmMapScreen(viewModel)
                     2 -> SettingsScreen(viewModel)
+                    3 -> AchievementsScreen(viewModel) // New Screen Route
                 }
             }
         }

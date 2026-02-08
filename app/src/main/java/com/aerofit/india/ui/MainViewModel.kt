@@ -2,6 +2,7 @@ package com.aerofit.india.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.aerofit.india.domain.model.gamification.Achievement
 import com.aerofit.india.domain.model.geo.GridCell
 import com.aerofit.india.domain.model.user.UserProfile
 import com.aerofit.india.domain.service.AchievementSystem
@@ -25,7 +26,7 @@ sealed interface DashboardUiState {
         val advice: String,
         val potentialPoints: Int,
         val totalScore: Int,
-        val achievement: String?, // Latest unlock
+        val achievement: String?,
         val userProfile: UserProfile,
         val latitude: Double,
         val longitude: Double
@@ -49,16 +50,20 @@ class MainViewModel(
     var userName = "Rider"
     private var currentTotalScore = 0
 
-    // For distance calculation
+    // Stats tracking
     private var lastLat: Double? = null
     private var lastLon: Double? = null
 
     init {
-        val firebaseUser = auth.currentUser
-        if (firebaseUser != null) {
-            userName = firebaseUser.displayName ?: "Rider"
+        if (auth.currentUser != null) {
+            userName = auth.currentUser?.displayName ?: "Rider"
             _isLoggedIn.value = true
         }
+    }
+
+    // --- HELPER FOR UI ---
+    fun getAchievementList(): List<Achievement> {
+        return AchievementSystem.getAllWithStatus(currentUser)
     }
 
     // --- AUTH ---
@@ -72,18 +77,7 @@ class MainViewModel(
     fun logout() {
         auth.signOut()
         _isLoggedIn.value = false
-    }
-
-    fun updateProfile(name: String, age: String, hasAsthma: Boolean) {
-        userName = name
-        val ageInt = age.toIntOrNull() ?: 22
-        // Preserve stats when updating profile info
-        currentUser = currentUser.copy(age = ageInt, hasRespiratoryIssues = hasAsthma)
-
-        val lastState = _uiState.value
-        if (lastState is DashboardUiState.Success) {
-            updateLiveLocation(lastState.latitude, lastState.longitude)
-        }
+        currentTotalScore = 0
     }
 
     fun firebaseAuthWithGoogle(idToken: String) {
@@ -96,30 +90,37 @@ class MainViewModel(
         }
     }
 
-    // --- LIVE TRACKING & GAMIFICATION ---
+    fun updateProfile(name: String, age: String, hasAsthma: Boolean) {
+        userName = name
+        val ageInt = age.toIntOrNull() ?: 22
+        currentUser = currentUser.copy(age = ageInt, hasRespiratoryIssues = hasAsthma)
+        val lastState = _uiState.value
+        if (lastState is DashboardUiState.Success) {
+            updateLiveLocation(lastState.latitude, lastState.longitude)
+        }
+    }
+
+    // --- LIVE TRACKING ---
     fun updateLiveLocation(lat: Double, lon: Double) {
         viewModelScope.launch {
-            // Calculate Distance moved since last update
-            val distanceMoved = calculateDistance(lastLat, lastLon, lat, lon)
+            // Update stats
+            val dist = calculateDistance(lastLat, lastLon, lat, lon)
             lastLat = lat
             lastLon = lon
 
-            // Update User Stats
             currentUser = currentUser.copy(
-                totalDistanceKm = currentUser.totalDistanceKm + distanceMoved,
-                tilesCaptured = currentUser.tilesCaptured + 1 // Simulating 1 tile per update for demo
+                totalDistanceKm = currentUser.totalDistanceKm + dist,
+                tilesCaptured = currentUser.tilesCaptured + 1
             )
 
             getAqiUseCase(lat, lon).collect { result ->
                 result.onSuccess { cell ->
                     val assessment = assessSuitabilityUseCase(currentUser, cell)
-                    if (assessment.isSafe) currentTotalScore += 5
+                    if (assessment.isSafe) currentTotalScore += 1
 
-                    // CHECK ACHIEVEMENTS
+                    // Check for unlocks
                     val unlocks = AchievementSystem.checkAchievements(currentUser, cell.aqiSnapshot?.overallAqi ?: 0)
                     val latestUnlock = if (unlocks.isNotEmpty()) unlocks.last().title else null
-
-                    if (latestUnlock != null) currentTotalScore += 500 // Bonus for unlock
 
                     _uiState.value = DashboardUiState.Success(
                         currentCell = cell,
@@ -142,20 +143,15 @@ class MainViewModel(
         updateLiveLocation(lat, lon)
     }
 
-    // Haversine formula for distance in km
     private fun calculateDistance(lat1: Double?, lon1: Double?, lat2: Double, lon2: Double): Double {
         if (lat1 == null || lon1 == null) return 0.0
-        val R = 6371 // Earth radius in km
+        val R = 6371
         val dLat = Math.toRadians(lat2 - lat1)
         val dLon = Math.toRadians(lon2 - lon1)
-        val a = sin(dLat / 2) * sin(dLat / 2) +
-                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
-                sin(dLon / 2) * sin(dLon / 2)
+        val a = sin(dLat / 2) * sin(dLat / 2) + cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2) * sin(dLon / 2)
         val c = 2 * atan2(sqrt(a), sqrt(1 - a))
         return R * c
     }
-
-    fun getAchievementList() = AchievementSystem.getAllWithStatus(currentUser)
 
     fun validateInput(input: String) = input.isNotBlank()
     fun generateOtp() = "1234"

@@ -3,9 +3,8 @@ package com.aerofit.india.ui.screens
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
@@ -15,8 +14,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -28,13 +25,16 @@ import com.aerofit.india.ui.MainViewModel
 import com.aerofit.india.ui.DashboardUiState
 
 @Composable
-fun DashboardScreen(viewModel: MainViewModel) {
+fun DashboardScreen(
+    viewModel: MainViewModel,
+    onRankClick: () -> Unit // Callback to open Achievements
+) {
     val uiState by viewModel.uiState.collectAsState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0F1115)) // Deep Dark Blue/Black
+            .background(Color(0xFF0F1115))
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -48,15 +48,19 @@ fun DashboardScreen(viewModel: MainViewModel) {
                 Text("WELCOME BACK,", color = Color.Gray, fontSize = 12.sp)
                 Text(viewModel.userName.uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
             }
-            // Rank Badge
+
+            // Rank Badge (Now Clickable)
             Surface(
                 color = Color(0xFF2D3142),
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.clickable { onRankClick() } // Triggers navigation
             ) {
                 Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
                     Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFD700), modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("RANK: SCOUT", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("›", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -77,7 +81,6 @@ fun DashboardScreen(viewModel: MainViewModel) {
                 Box(contentAlignment = Alignment.Center) {
                     val aqiColor = if (state.canRun) Color(0xFF00E676) else Color(0xFFFF5252)
 
-                    // Animated Circle
                     CircularIndicator(
                         percentage = (state.currentCell.aqiSnapshot?.overallAqi ?: 0) / 500f,
                         color = aqiColor,
@@ -111,14 +114,12 @@ fun DashboardScreen(viewModel: MainViewModel) {
 
                 // --- STATS GRID ---
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Card 1: Score
                     StatCard(
                         title = "TOTAL XP",
                         value = "${state.totalScore}",
                         color = Color(0xFF29B6F6),
                         modifier = Modifier.weight(1f)
                     )
-                    // Card 2: Potential
                     StatCard(
                         title = "TILE VALUE",
                         value = "+${state.potentialPoints}",
@@ -131,11 +132,9 @@ fun DashboardScreen(viewModel: MainViewModel) {
 
                 // --- ACTION BUTTON ---
                 Button(
-                    onClick = { /* TODO: Trigger Run Logic */ },
+                    onClick = { /* Trigger Run Logic */ },
                     colors = ButtonDefaults.buttonColors(containerColor = if(state.canRun) Color(0xFF00E676) else Color(0xFF455A64)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp),
+                    modifier = Modifier.fillMaxWidth().height(60.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -172,7 +171,6 @@ fun StatCard(title: String, value: String, color: Color, modifier: Modifier = Mo
 @Composable
 fun CircularIndicator(percentage: Float, color: Color, size: Dp) {
     Canvas(modifier = Modifier.size(size)) {
-        // Background track
         drawArc(
             color = Color(0xFF2D3142),
             startAngle = 135f,
@@ -180,7 +178,6 @@ fun CircularIndicator(percentage: Float, color: Color, size: Dp) {
             useCenter = false,
             style = Stroke(width = 20f, cap = StrokeCap.Round)
         )
-        // Foreground progress
         drawArc(
             color = color,
             startAngle = 135f,

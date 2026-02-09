@@ -7,7 +7,7 @@ data class AqiSnapshot(
     val timestamp: Long
 )
 
-// This Enum MUST be here.
+// This Enum definition MUST be here.
 enum class AqiCategory(val label: String, val colorHex: String) {
     Good("Good", "#00B050"),
     Satisfactory("Satisfactory", "#92D050"),

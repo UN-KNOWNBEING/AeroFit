@@ -5,14 +5,10 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(
-    entities = [AqiEntity::class, UserEntity::class, DailyRecordEntity::class],
-    version = 2, // Changed to version 2
-    exportSchema = false
-)
+// Added DailyRecordEntity and increased version to 2
+@Database(entities = [UserEntity::class, DailyRecordEntity::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
-    abstract fun aqiDao(): AqiDao
     abstract fun userDao(): UserDao
 
     companion object {
@@ -26,7 +22,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "aerofit_database"
                 )
-                    .fallbackToDestructiveMigration() // Safely upgrades the database
+                    .fallbackToDestructiveMigration() // Automatically updates the DB safely
                     .build()
                 INSTANCE = instance
                 instance

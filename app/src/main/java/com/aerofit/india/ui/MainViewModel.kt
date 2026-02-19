@@ -1,20 +1,20 @@
 package com.aerofit.india.ui
 
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aerofit.india.data.local.DailyRecordEntity
 import com.aerofit.india.data.local.UserDao
 import com.aerofit.india.data.local.UserEntity
-import com.aerofit.india.domain.model.gamification.Achievement
 import com.aerofit.india.domain.model.geo.GridCell
 import com.aerofit.india.domain.model.user.UserProfile
 import com.aerofit.india.domain.service.AchievementSystem
 import com.aerofit.india.domain.usecase.AssessRunningSuitabilityUseCase
 import com.aerofit.india.domain.usecase.GetAqiForCurrentLocationUseCase
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,10 +22,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.*
 import kotlin.math.*
+import kotlin.random.Random
 
+// 1. THE STATE MACHINE (Added Path Tracking & Airdrop!)
 sealed interface DashboardUiState {
     object Loading : DashboardUiState
     data class Success(
@@ -47,7 +48,10 @@ sealed interface DashboardUiState {
         val dailySteps: Int = 0,
         val dailyCalories: Int = 0,
         val dailyDistance: Double = 0.0,
-        val dailyActiveTime: Int = 0
+        val dailyActiveTime: Int = 0,
+        val pathHistory: List<Pair<Double, Double>> = emptyList(), // Trail
+        val airdropLat: Double? = null, // Loot Box
+        val airdropLon: Double? = null
     ) : DashboardUiState
     data class Error(val message: String) : DashboardUiState
 }
@@ -55,21 +59,24 @@ sealed interface DashboardUiState {
 class MainViewModel(
     private val getAqiUseCase: GetAqiForCurrentLocationUseCase,
     private val assessSuitabilityUseCase: AssessRunningSuitabilityUseCase,
-    private val userDao: UserDao
-) : ViewModel() {
+    private val userDao: UserDao,
+    private val context: Context
+) : ViewModel(), SensorEventListener {
 
     private val _uiState = MutableStateFlow<DashboardUiState>(DashboardUiState.Loading)
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
+
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
-    // --- NEW: HISTORY STATE ---
     private val _historyLogs = MutableStateFlow<List<DailyRecordEntity>>(emptyList())
     val historyLogs: StateFlow<List<DailyRecordEntity>> = _historyLogs.asStateFlow()
 
-    private val auth: FirebaseAuth = Firebase.auth
+    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    private val stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
+
     private var currentUser = UserProfile(id = "user_1", hasRespiratoryIssues = false, age = 22)
-    var userName = "Rider"
+    var userName = "Agent"
     private var currentTotalScore = 0
     private var lastLat: Double? = null
     private var lastLon: Double? = null
@@ -82,6 +89,11 @@ class MainViewModel(
     private var activeSteps = 0
     private var missionGoalKm = 1.0
     private var timerJob: Job? = null
+
+    // NEW GAMIFICATION STATE
+    private val pathHistory = mutableListOf<Pair<Double, Double>>()
+    private var airdropLat: Double? = null
+    private var airdropLon: Double? = null
 
     // DAILY STATE
     private var dailyDistance = 0.0
@@ -96,37 +108,69 @@ class MainViewModel(
                 userName = savedDbUser.name
                 currentTotalScore = savedDbUser.totalScore
                 currentUser = UserProfile(savedDbUser.id, savedDbUser.hasRespiratoryIssues, savedDbUser.age, savedDbUser.totalDistanceKm, savedDbUser.tilesCaptured)
-            }
-            val todayDate = getTodayDateString()
-            val todayRecord = userDao.getDailyRecord(todayDate)
-            if (todayRecord != null) {
-                dailyDistance = todayRecord.distanceKm
-                dailyActiveTime = todayRecord.activeTimeSeconds
-                dailySteps = todayRecord.steps
-                dailyCalories = todayRecord.caloriesBurned
-            }
-            if (auth.currentUser != null) {
-                userName = auth.currentUser?.displayName ?: userName
                 _isLoggedIn.value = true
             }
+            loadDailyData()
+        }
+    }
+
+    private suspend fun loadDailyData() {
+        val todayRecord = userDao.getDailyRecord(getTodayDateString())
+        if (todayRecord != null) {
+            dailyDistance = todayRecord.distanceKm
+            dailyActiveTime = todayRecord.activeTimeSeconds
+            dailySteps = todayRecord.steps
+            dailyCalories = todayRecord.caloriesBurned
         }
     }
 
     private fun getTodayDateString(): String = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
-    // --- NEW: FETCH HISTORY FUNCTION ---
-    fun loadHistory() {
-        viewModelScope.launch {
-            _historyLogs.value = userDao.getAllHistory()
-        }
+    fun loadDataForLocation(lat: Double, lon: Double) {
+        updateLiveLocation(lat, lon)
     }
 
-    fun setMissionGoal(km: Double) {
-        if (!isMissionActive) {
-            missionGoalKm = km
+    // --- NEW: SPAWN LOOT BOX ON MAP ---
+    fun spawnAirdrop() {
+        if (lastLat != null && lastLon != null && airdropLat == null) {
+            // Spawn ~150 meters away in a random direction
+            val randLat = (Random.nextDouble() - 0.5) * 0.003
+            val randLon = (Random.nextDouble() - 0.5) * 0.003
+            airdropLat = lastLat!! + randLat
+            airdropLon = lastLon!! + randLon
             forceUiUpdate()
         }
     }
+
+    fun devSimulateMovement() {
+        if (isMissionActive && lastLat != null && lastLon != null) {
+            activeSteps += 130
+            dailySteps += 130
+            dailyCalories += 5
+
+            // If an airdrop exists, simulate walking TOWARDS it!
+            val newLat = if (airdropLat != null) {
+                lastLat!! + if (airdropLat!! > lastLat!!) 0.0001 else -0.0001
+            } else lastLat!! + 0.0001
+
+            val newLon = if (airdropLon != null) {
+                lastLon!! + if (airdropLon!! > lastLon!!) 0.0001 else -0.0001
+            } else lastLon!! + 0.0001
+
+            updateLiveLocation(newLat, newLon)
+        }
+    }
+
+    fun logout() { _isLoggedIn.value = false }
+
+    fun updateProfile(name: String, age: String, asthma: Boolean) {
+        userName = name
+        currentUser = currentUser.copy(age = age.toIntOrNull() ?: 22, hasRespiratoryIssues = asthma)
+        saveAllToDb()
+    }
+
+    fun login(id: String) { userName = id; saveAllToDb(); _isLoggedIn.value = true }
+    fun firebaseAuthWithGoogle(token: String) { userName = "Google Agent"; saveAllToDb(); _isLoggedIn.value = true }
 
     fun startMission(forceHazardous: Boolean = false) {
         isMissionActive = true
@@ -134,6 +178,10 @@ class MainViewModel(
         missionTimeSeconds = 0
         missionDistanceKm = 0.0
         activeSteps = 0
+        pathHistory.clear()
+        airdropLat = null
+        airdropLon = null
+        stepSensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
         startTimer()
         forceUiUpdate()
     }
@@ -141,38 +189,65 @@ class MainViewModel(
     fun endMission() {
         isMissionActive = false
         timerJob?.cancel()
+        sensorManager.unregisterListener(this)
 
-        val completionRate = if (missionGoalKm > 0) (missionDistanceKm / missionGoalKm).coerceAtMost(1.0) else 0.0
-        var basePoints = (missionDistanceKm * 50).toInt()
-
-        if (completionRate >= 1.0) basePoints += 100
-        else basePoints = (basePoints * completionRate).toInt()
-
-        if (isHazardousRun) basePoints /= 2
-
-        currentTotalScore += basePoints
-
-        currentUser = currentUser.copy(
-            totalDistanceKm = currentUser.totalDistanceKm + missionDistanceKm,
-            tilesCaptured = currentUser.tilesCaptured + (missionDistanceKm * 10).toInt()
-        )
+        val points = (missionDistanceKm * 50).toInt() + (activeSteps / 10)
+        currentTotalScore += if (isHazardousRun) points / 2 else points
         saveAllToDb()
-
-        missionTimeSeconds = 0
-        missionDistanceKm = 0.0
-        activeSteps = 0
         forceUiUpdate()
     }
 
-    fun devSimulateMovement() {
-        if (isMissionActive) {
-            val fakeDist = 0.1
-            missionDistanceKm += fakeDist
-            dailyDistance += fakeDist
-            activeSteps = (missionDistanceKm * 1312).toInt()
-            dailySteps = (dailyDistance * 1312).toInt()
-            dailyCalories = (dailyDistance * 62).toInt()
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (isMissionActive && event?.sensor?.type == Sensor.TYPE_STEP_DETECTOR) {
+            activeSteps++
+            dailySteps++
+            if (dailySteps % 20 == 0) dailyCalories++
+            val stepDistanceKm = 0.00075
+            missionDistanceKm += stepDistanceKm
+            dailyDistance += stepDistanceKm
             forceUiUpdate()
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
+    fun updateLiveLocation(lat: Double, lon: Double) {
+        viewModelScope.launch {
+            val dist = calculateDistance(lastLat, lastLon, lat, lon)
+            lastLat = lat
+            lastLon = lon
+
+            if (isMissionActive) {
+                if (dist > 0) {
+                    missionDistanceKm += dist
+                    dailyDistance += dist
+                }
+                // Log the path for the map trail
+                pathHistory.add(Pair(lat, lon))
+
+                // CHECK IF AGENT REACHED THE AIRDROP (Within 30 meters / 0.03 km)
+                if (airdropLat != null && airdropLon != null) {
+                    val dropDist = calculateDistance(lat, lon, airdropLat!!, airdropLon!!)
+                    if (dropDist < 0.03) {
+                        currentTotalScore += 500 // MASSIVE REWARD!
+                        airdropLat = null // Remove from map
+                        airdropLon = null
+                    }
+                }
+            }
+
+            getAqiUseCase(lat, lon).collect { result ->
+                result.onSuccess { cell ->
+                    val assessment = assessSuitabilityUseCase(currentUser, cell)
+                    _uiState.value = DashboardUiState.Success(
+                        cell, assessment.isSafe, assessment.message, assessment.potentialPoints,
+                        currentTotalScore, null, currentUser, lat, lon,
+                        isMissionActive, isHazardousRun, missionTimeSeconds, missionDistanceKm, activeSteps, missionGoalKm,
+                        dailySteps, dailyCalories, dailyDistance, dailyActiveTime,
+                        pathHistory.toList(), airdropLat, airdropLon
+                    )
+                }
+            }
         }
     }
 
@@ -183,63 +258,20 @@ class MainViewModel(
                 delay(1000L)
                 missionTimeSeconds++
                 dailyActiveTime++
-                if (missionTimeSeconds % 5 == 0) saveAllToDb()
                 forceUiUpdate()
             }
         }
-    }
-
-    private fun saveAllToDb() {
-        viewModelScope.launch {
-            userDao.saveUser(UserEntity(currentUser.id, userName, currentUser.age, currentUser.hasRespiratoryIssues, currentUser.totalDistanceKm, currentUser.tilesCaptured, currentTotalScore))
-            userDao.saveDailyRecord(DailyRecordEntity(getTodayDateString(), dailySteps, dailyDistance, dailyCalories, dailyActiveTime))
-        }
-    }
-
-    fun updateLiveLocation(lat: Double, lon: Double) {
-        viewModelScope.launch {
-            val dist = calculateDistance(lastLat, lastLon, lat, lon)
-            lastLat = lat
-            lastLon = lon
-
-            if (isMissionActive && dist > 0) {
-                missionDistanceKm += dist
-                dailyDistance += dist
-                activeSteps = (missionDistanceKm * 1312).toInt()
-                dailySteps = (dailyDistance * 1312).toInt()
-                dailyCalories = (dailyDistance * 62).toInt()
-            }
-
-            getAqiUseCase(lat, lon).collect { result ->
-                result.onSuccess { cell ->
-                    val assessment = assessSuitabilityUseCase(currentUser, cell)
-                    val unlocks = AchievementSystem.checkAchievements(currentUser, cell.aqiSnapshot?.overallAqi ?: 0)
-
-                    _uiState.value = DashboardUiState.Success(
-                        cell, assessment.isSafe, assessment.message, assessment.potentialPoints,
-                        currentTotalScore, unlocks.lastOrNull()?.title, currentUser, lat, lon,
-                        isMissionActive, isHazardousRun, missionTimeSeconds, missionDistanceKm, activeSteps, missionGoalKm,
-                        dailySteps, dailyCalories, dailyDistance, dailyActiveTime
-                    )
-                }.onFailure { }
-            }
-        }
-    }
-
-    fun loadDataForLocation(lat: Double, lon: Double) {
-        _uiState.value = DashboardUiState.Loading
-        updateLiveLocation(lat, lon)
     }
 
     private fun forceUiUpdate() {
         val currentState = _uiState.value
         if (currentState is DashboardUiState.Success) {
             _uiState.value = currentState.copy(
-                isMissionActive = isMissionActive, isHazardousRun = isHazardousRun,
-                missionTimeSeconds = missionTimeSeconds, missionDistanceKm = missionDistanceKm,
-                activeSteps = activeSteps, missionGoalKm = missionGoalKm,
-                totalScore = currentTotalScore, userProfile = currentUser,
-                dailySteps = dailySteps, dailyCalories = dailyCalories, dailyDistance = dailyDistance, dailyActiveTime = dailyActiveTime
+                isMissionActive = isMissionActive, missionTimeSeconds = missionTimeSeconds,
+                missionDistanceKm = missionDistanceKm, activeSteps = activeSteps,
+                totalScore = currentTotalScore, dailySteps = dailySteps,
+                dailyCalories = dailyCalories, dailyDistance = dailyDistance,
+                pathHistory = pathHistory.toList(), airdropLat = airdropLat, airdropLon = airdropLon
             )
         }
     }
@@ -253,23 +285,24 @@ class MainViewModel(
         return earthRadius * (2 * atan2(sqrt(a), sqrt(1 - a)))
     }
 
-    fun login(id: String) { userName = id; saveAllToDb(); _isLoggedIn.value = true }
-    fun logout() { auth.signOut(); _isLoggedIn.value = false }
-    fun firebaseAuthWithGoogle(token: String) { auth.signInWithCredential(GoogleAuthProvider.getCredential(token, null)).addOnCompleteListener { if (it.isSuccessful) { userName = auth.currentUser?.displayName ?: "Rider"; saveAllToDb(); _isLoggedIn.value = true } } }
-    fun updateProfile(name: String, age: String, asthma: Boolean) { userName = name; currentUser = currentUser.copy(age = age.toIntOrNull() ?: 22, hasRespiratoryIssues = asthma); saveAllToDb() }
-    fun getAchievementList() = AchievementSystem.getAllWithStatus(currentUser)
-    // --- NEW: INDOOR HIIT LOGIC ---
+    private fun saveAllToDb() {
+        viewModelScope.launch {
+            userDao.saveUser(UserEntity(currentUser.id, userName, currentUser.age, currentUser.hasRespiratoryIssues, currentUser.totalDistanceKm, currentUser.tilesCaptured, currentTotalScore))
+            userDao.saveDailyRecord(DailyRecordEntity(getTodayDateString(), dailySteps, dailyDistance, dailyCalories, dailyActiveTime))
+        }
+    }
+
+    fun setMissionGoal(km: Double) { if (!isMissionActive) missionGoalKm = km; forceUiUpdate() }
+    fun loadHistory() { viewModelScope.launch { _historyLogs.value = userDao.getAllHistory() } }
+
     fun finishHiitSession(reps: Int, exerciseName: String, durationSeconds: Int) {
-        // Pushups give 3 XP per rep. Squats give 2 XP per rep.
-        val multiplier = if (exerciseName == "PUSHUP") 3 else 2
-        val earnedXp = reps * multiplier
-        val burnedKcal = (reps * 0.5).toInt()
-
+        val earnedXp = reps * (if (exerciseName == "PUSHUP") 3 else 2)
         currentTotalScore += earnedXp
-        dailyCalories += burnedKcal
+        dailyCalories += (reps * 0.5).toInt()
         dailyActiveTime += durationSeconds
-
         saveAllToDb()
         forceUiUpdate()
     }
+
+    fun getAchievementList() = AchievementSystem.getAllWithStatus(currentUser)
 }

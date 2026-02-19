@@ -2,6 +2,7 @@ package com.aerofit.india
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -30,20 +31,24 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
-    // Manual Dependency Injection updated with Database
     private val viewModel: MainViewModel by viewModels {
         val repository = AppModule.provideAqiRepository(applicationContext)
         val getAqiUseCase = GetAqiForCurrentLocationUseCase(repository, GridCalculator)
         val assessUseCase = AssessRunningSuitabilityUseCase()
         val database = AppDatabase.getDatabase(applicationContext)
 
-        ViewModelFactory(getAqiUseCase, assessUseCase, database.userDao())
+        ViewModelFactory(getAqiUseCase, assessUseCase, database.userDao(), applicationContext)
     }
 
     private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) getCurrentLocation() else Toast.makeText(this, "Location needed", Toast.LENGTH_LONG).show()
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val locationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        if (locationGranted) {
+            getCurrentLocation()
+        } else {
+            Toast.makeText(this, "Location permission is required.", Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,10 +69,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkPermissionsAndFetchLocation() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        val permissionsToRequest = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            permissionsToRequest.add(Manifest.permission.ACTIVITY_RECOGNITION)
+        }
+
+        val missingPermissions = permissionsToRequest.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (missingPermissions.isEmpty()) {
             getCurrentLocation()
         } else {
-            requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            requestPermissionLauncher.launch(missingPermissions.toTypedArray())
         }
     }
 

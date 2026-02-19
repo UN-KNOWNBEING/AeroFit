@@ -13,12 +13,12 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -68,7 +68,7 @@ fun HiitScreen(viewModel: MainViewModel, onBackClick: () -> Unit) {
     // Active Tracker State
     var currentSet by remember { mutableStateOf(1) }
     var currentReps by remember { mutableStateOf(0) }
-    var restTimeLeft by remember { mutableStateOf(15) } // 15 sec rest between sets
+    var restTimeLeft by remember { mutableStateOf(15) } // 15 sec rest
     var totalWorkoutTime by remember { mutableStateOf(0) }
 
     // Global Timer
@@ -85,7 +85,6 @@ fun HiitScreen(viewModel: MainViewModel, onBackClick: () -> Unit) {
             delay(1000L)
             restTimeLeft--
             if (restTimeLeft == 0) {
-                // Next Set Starts!
                 currentSet++
                 currentReps = 0
                 workoutState = WorkoutState.ACTIVE
@@ -96,21 +95,24 @@ fun HiitScreen(viewModel: MainViewModel, onBackClick: () -> Unit) {
     val cameraExecutor: ExecutorService = remember { Executors.newSingleThreadExecutor() }
     DisposableEffect(Unit) { onDispose { cameraExecutor.shutdown() } }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0F1115))) {
 
         // --- 1. SETUP SCREEN ---
         if (workoutState == WorkoutState.SETUP) {
+            // Calculate dynamic XP transparently
+            val xpMultiplier = if (selectedExercise == ExerciseType.PUSHUP) 3 else 2
+            val totalPotentialXp = targetSets * targetReps * xpMultiplier
+
             Column(
                 modifier = Modifier.fillMaxSize().padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 Text("BUILD MISSION", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Black)
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 // Exercise Toggle
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    // FIX: Renamed from GoalButton to ExerciseToggleButton
                     ExerciseToggleButton("SQUATS", selectedExercise == ExerciseType.SQUAT) { selectedExercise = ExerciseType.SQUAT }
                     ExerciseToggleButton("PUSH-UPS", selectedExercise == ExerciseType.PUSHUP) { selectedExercise = ExerciseType.PUSHUP }
                 }
@@ -118,7 +120,7 @@ fun HiitScreen(viewModel: MainViewModel, onBackClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(32.dp))
 
                 // Sets Controller
-                Text("SETS: $targetSets", color = Color(0xFFFFD700), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text("SETS: $targetSets", color = Color(0xFFFFD700), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Slider(
                     value = targetSets.toFloat(),
                     onValueChange = { targetSets = it.toInt() },
@@ -127,10 +129,10 @@ fun HiitScreen(viewModel: MainViewModel, onBackClick: () -> Unit) {
                     colors = SliderDefaults.colors(thumbColor = Color(0xFF00E676), activeTrackColor = Color(0xFF00E676))
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Reps Controller
-                Text("REPS PER SET: $targetReps", color = Color(0xFF00BFFF), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text("REPS PER SET: $targetReps", color = Color(0xFF00BFFF), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Slider(
                     value = targetReps.toFloat(),
                     onValueChange = { targetReps = it.toInt() },
@@ -139,7 +141,36 @@ fun HiitScreen(viewModel: MainViewModel, onBackClick: () -> Unit) {
                     colors = SliderDefaults.colors(thumbColor = Color(0xFF00E676), activeTrackColor = Color(0xFF00E676))
                 )
 
-                Spacer(modifier = Modifier.height(48.dp))
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // --- NEW: TRANSPARENCY CARD ---
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E2129)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Info, contentDescription = "Info", tint = Color.Gray, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("AI ALGORITHM ACTIVE", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = if (selectedExercise == ExerciseType.PUSHUP)
+                                "Push-ups track elbow angles. Earn 3 XP per rep."
+                            else
+                                "Squats track knee angles. Earn 2 XP per rep.",
+                            color = Color.LightGray, fontSize = 14.sp, textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Divider(color = Color.DarkGray)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("POTENTIAL REWARD", color = Color.White, fontSize = 14.sp)
+                        Text("+$totalPotentialXp XP", color = Color(0xFF00E676), fontSize = 32.sp, fontWeight = FontWeight.Black)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
 
                 Button(
                     onClick = { workoutState = WorkoutState.ACTIVE },
@@ -149,7 +180,7 @@ fun HiitScreen(viewModel: MainViewModel, onBackClick: () -> Unit) {
                     Text("START TRACKING", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 TextButton(onClick = onBackClick) { Text("Cancel", color = Color.Gray) }
             }
         }
@@ -285,7 +316,6 @@ fun HiitScreen(viewModel: MainViewModel, onBackClick: () -> Unit) {
     }
 }
 
-// FIX: Renamed from GoalButton to ExerciseToggleButton
 @Composable
 private fun ExerciseToggleButton(text: String, selected: Boolean, onClick: () -> Unit) {
     Button(

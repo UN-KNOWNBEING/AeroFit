@@ -258,4 +258,18 @@ class MainViewModel(
     fun firebaseAuthWithGoogle(token: String) { auth.signInWithCredential(GoogleAuthProvider.getCredential(token, null)).addOnCompleteListener { if (it.isSuccessful) { userName = auth.currentUser?.displayName ?: "Rider"; saveAllToDb(); _isLoggedIn.value = true } } }
     fun updateProfile(name: String, age: String, asthma: Boolean) { userName = name; currentUser = currentUser.copy(age = age.toIntOrNull() ?: 22, hasRespiratoryIssues = asthma); saveAllToDb() }
     fun getAchievementList() = AchievementSystem.getAllWithStatus(currentUser)
+    // --- NEW: INDOOR HIIT LOGIC ---
+    fun finishHiitSession(reps: Int, exerciseName: String, durationSeconds: Int) {
+        // Pushups give 3 XP per rep. Squats give 2 XP per rep.
+        val multiplier = if (exerciseName == "PUSHUP") 3 else 2
+        val earnedXp = reps * multiplier
+        val burnedKcal = (reps * 0.5).toInt()
+
+        currentTotalScore += earnedXp
+        dailyCalories += burnedKcal
+        dailyActiveTime += durationSeconds
+
+        saveAllToDb()
+        forceUiUpdate()
+    }
 }

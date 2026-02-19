@@ -23,11 +23,13 @@ import com.aerofit.india.ui.DashboardUiState
 import com.aerofit.india.ui.MainViewModel
 import com.aerofit.india.ui.components.AqiGauge
 
+
 @Composable
 fun DashboardScreen(
     viewModel: MainViewModel,
     onRankClick: () -> Unit = {},
-    onHistoryClick: () -> Unit = {}
+    onHistoryClick: () -> Unit = {},
+    onHiitClick: () -> Unit = {}
 ) {
     val uiState = viewModel.uiState.collectAsState().value
     val context = LocalContext.current
@@ -177,20 +179,33 @@ fun DashboardScreen(
                         Text("EXTRACT / END MISSION", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     }
                 } else if (uiState.canRun) {
-                    // Safe AQI -> Normal Run Button
-                    Button(
-                        onClick = { viewModel.startMission(forceHazardous = false) },
-                        modifier = Modifier.fillMaxWidth().height(60.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("START ${uiState.missionGoalKm.toInt()}km MISSION", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    // Safe AQI -> Normal Run OR Indoor HIIT
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { viewModel.startMission(forceHazardous = false) },
+                            modifier = Modifier.fillMaxWidth().height(60.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("START ${uiState.missionGoalKm.toInt()}km MISSION", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        }
+
+                        // FIX: Added HIIT option even on Good AQI days!
+                        Button(
+                            onClick = { onHiitClick() },
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E2129)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("OR START INDOOR HIIT", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
                     }
                 } else {
                     // Hazardous AQI -> User gets a CHOICE
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
-                            onClick = { Toast.makeText(context, "AI Camera Starting Soon!", Toast.LENGTH_SHORT).show() },
+                            // FIX: Replaced Toast message with the actual Hiit Navigation!
+                            onClick = { onHiitClick() },
                             modifier = Modifier.weight(1f).height(60.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00BFFF)),
                             shape = RoundedCornerShape(12.dp)

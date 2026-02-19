@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import com.aerofit.india.ui.screens.AchievementsScreen
 import com.aerofit.india.ui.screens.DashboardScreen
 import com.aerofit.india.ui.screens.HistoryScreen
+import com.aerofit.india.ui.screens.HiitScreen
 import com.aerofit.india.ui.screens.LoginScreen
 import com.aerofit.india.ui.screens.OsmMapScreen
 import com.aerofit.india.ui.screens.SettingsScreen
@@ -20,7 +21,7 @@ import com.aerofit.india.ui.screens.SettingsScreen
 fun AeroFitApp(viewModel: MainViewModel) {
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
 
-    // 0=Dash, 1=Map, 2=Profile, 3=Achievements, 4=History
+    // 0=Dash, 1=Map, 2=Profile, 3=Achievements, 4=History, 5=Hiit
     var currentScreen by remember { mutableIntStateOf(0) }
 
     if (!isLoggedIn) {
@@ -57,20 +58,20 @@ fun AeroFitApp(viewModel: MainViewModel) {
                 modifier = Modifier.padding(innerPadding),
                 color = MaterialTheme.colorScheme.background
             ) {
+                // Inside AeroFitApp.kt, update the `when (currentScreen)` block:
+
                 when (currentScreen) {
-                    // Pass the callbacks to switch to Achievements (3) or History (4)
                     0 -> DashboardScreen(
                         viewModel = viewModel,
                         onRankClick = { currentScreen = 3 },
-                        onHistoryClick = { currentScreen = 4 }
+                        onHistoryClick = { currentScreen = 4 },
+                        onHiitClick = { currentScreen = 5 } // ADD THIS!
                     )
                     1 -> OsmMapScreen(viewModel)
                     2 -> SettingsScreen(viewModel)
-                    3 -> AchievementsScreen(viewModel) // Screen 3
-                    4 -> HistoryScreen( // Screen 4
-                        viewModel = viewModel,
-                        onBackClick = { currentScreen = 0 } // Takes you back to Dashboard
-                    )
+                    3 -> AchievementsScreen(viewModel)
+                    4 -> HistoryScreen(viewModel = viewModel, onBackClick = { currentScreen = 0 })
+                    5 -> HiitScreen(viewModel = viewModel, onBackClick = { currentScreen = 0 }) // ADD THIS!
                 }
             }
         }

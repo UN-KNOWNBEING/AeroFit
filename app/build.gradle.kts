@@ -111,4 +111,14 @@ dependencies {
     // Retrofit (For Real API Calls)
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    // --- CameraX (For showing the camera on screen) ---
+    val cameraxVersion = "1.3.1"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+
+    // --- Google ML Kit (For AI Pose Detection) ---
+    implementation("com.google.mlkit:pose-detection:17.0.0")
+    implementation("com.google.mlkit:pose-detection-accurate:17.0.0")
 }

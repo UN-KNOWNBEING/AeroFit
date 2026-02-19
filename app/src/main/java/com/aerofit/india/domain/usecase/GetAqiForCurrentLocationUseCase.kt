@@ -10,14 +10,14 @@ class GetAqiForCurrentLocationUseCase(
     private val repository: IAqiRepository,
     private val gridCalculator: GridCalculator
 ) {
-    // Accepts Double (lat, lon) directly
-    suspend operator fun invoke(lat: Double, lon: Double): Flow<Result<GridCell>> = flow {
-        val cell = gridCalculator.getCellForLocation(lat, lon)
-        val result = repository.getAqiForLocation(lat, lon, cell.id)
+    operator fun invoke(lat: Double, lon: Double): Flow<Result<GridCell>> = flow {
+        val cellId = gridCalculator.calculateCellId(lat, lon)
+        val result = repository.getAqiForLocation(lat, lon)
 
-        result.fold(
-            onSuccess = { aqi -> emit(Result.success(cell.copy(aqiSnapshot = aqi))) },
-            onFailure = { err -> emit(Result.failure(err)) }
-        )
+        result.onSuccess { snapshot ->
+            emit(Result.success(GridCell(cellId, lat, lon, snapshot)))
+        }.onFailure { error ->
+            emit(Result.failure(error))
+        }
     }
 }

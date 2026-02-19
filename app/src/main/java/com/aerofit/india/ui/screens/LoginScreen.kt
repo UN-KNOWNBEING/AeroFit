@@ -23,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.aerofit.india.R
 import com.aerofit.india.ui.MainViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -37,10 +36,8 @@ fun LoginScreen(viewModel: MainViewModel) {
     // --- Google Sign-In Configuration ---
     val gso = remember {
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            // FIX: Replaced 'getString(R.string.default_web_client_id)' with a placeholder string.
-            // This stops the build error immediately.
-            // Once you have a real Firebase project setup, you can put your real Web Client ID here.
-            .requestIdToken("123456789-placeholder-id.apps.googleusercontent.com")
+            // FIX: Replaced R.string with a dummy string so the app compiles immediately!
+            .requestIdToken("dummy-client-id.apps.googleusercontent.com")
             .requestEmail()
             .build()
     }
@@ -61,10 +58,8 @@ fun LoginScreen(viewModel: MainViewModel) {
                 }
             } catch (e: ApiException) {
                 isLoading = false
-                // Since we are using a placeholder ID, this WILL fail with code 10 or 12500.
-                // We automatically fallback to Guest Login so you can enter the app.
-                Toast.makeText(context, "Dev Mode: Bypassing Auth (Error ${e.statusCode})", Toast.LENGTH_SHORT).show()
-                viewModel.login("Guest Agent", "")
+                Toast.makeText(context, "Dev Mode: Bypassing Auth", Toast.LENGTH_SHORT).show()
+                viewModel.login("Guest")
             }
         } else {
             isLoading = false
@@ -146,16 +141,13 @@ fun LoginScreen(viewModel: MainViewModel) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        // Text Logo
                         Text("G", color = Color.Blue, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                         Text("o", color = Color.Red, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                         Text("o", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold, fontSize = 20.sp)
                         Text("g", color = Color.Blue, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                         Text("l", color = Color.Green, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                         Text("e", color = Color.Red, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-
                         Spacer(modifier = Modifier.width(12.dp))
-
                         Text(
                             text = "Continue with Google",
                             color = Color.Black,
@@ -167,8 +159,7 @@ fun LoginScreen(viewModel: MainViewModel) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Guest / Dev Option
-                TextButton(onClick = { viewModel.login("Agent", "") }) {
+                TextButton(onClick = { viewModel.login("Agent") }) {
                     Text("Developer Bypass (Guest Mode)", color = Color.Gray, fontSize = 12.sp)
                 }
             }

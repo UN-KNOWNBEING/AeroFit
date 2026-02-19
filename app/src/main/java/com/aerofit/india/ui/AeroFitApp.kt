@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.aerofit.india.ui.screens.AchievementsScreen
 import com.aerofit.india.ui.screens.DashboardScreen
+import com.aerofit.india.ui.screens.HistoryScreen
 import com.aerofit.india.ui.screens.LoginScreen
 import com.aerofit.india.ui.screens.OsmMapScreen
 import com.aerofit.india.ui.screens.SettingsScreen
@@ -19,7 +20,7 @@ import com.aerofit.india.ui.screens.SettingsScreen
 fun AeroFitApp(viewModel: MainViewModel) {
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
 
-    // 0=Dash, 1=Map, 2=Profile, 3=Achievements (Hidden from bottom bar)
+    // 0=Dash, 1=Map, 2=Profile, 3=Achievements, 4=History
     var currentScreen by remember { mutableIntStateOf(0) }
 
     if (!isLoggedIn) {
@@ -57,11 +58,19 @@ fun AeroFitApp(viewModel: MainViewModel) {
                 color = MaterialTheme.colorScheme.background
             ) {
                 when (currentScreen) {
-                    // Pass the callback to switch to Achievements (Screen 3)
-                    0 -> DashboardScreen(viewModel, onRankClick = { currentScreen = 3 })
+                    // Pass the callbacks to switch to Achievements (3) or History (4)
+                    0 -> DashboardScreen(
+                        viewModel = viewModel,
+                        onRankClick = { currentScreen = 3 },
+                        onHistoryClick = { currentScreen = 4 }
+                    )
                     1 -> OsmMapScreen(viewModel)
                     2 -> SettingsScreen(viewModel)
-                    3 -> AchievementsScreen(viewModel) // New Screen Route
+                    3 -> AchievementsScreen(viewModel) // Screen 3
+                    4 -> HistoryScreen( // Screen 4
+                        viewModel = viewModel,
+                        onBackClick = { currentScreen = 0 } // Takes you back to Dashboard
+                    )
                 }
             }
         }

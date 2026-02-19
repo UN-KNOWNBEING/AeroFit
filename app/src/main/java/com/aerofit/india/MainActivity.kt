@@ -18,11 +18,11 @@ import com.aerofit.india.di.AppModule
 import com.aerofit.india.domain.service.GridCalculator
 import com.aerofit.india.domain.usecase.AssessRunningSuitabilityUseCase
 import com.aerofit.india.domain.usecase.GetAqiForCurrentLocationUseCase
-// FIX: Import AeroFitApp instead of specific screens
 import com.aerofit.india.ui.AeroFitApp
 import com.aerofit.india.ui.MainViewModel
 import com.aerofit.india.ui.ViewModelFactory
 import com.aerofit.india.ui.theme.AeroFitTheme
+import com.aerofit.india.data.local.AppDatabase
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 
@@ -30,11 +30,14 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
+    // Manual Dependency Injection updated with Database
     private val viewModel: MainViewModel by viewModels {
         val repository = AppModule.provideAqiRepository(applicationContext)
         val getAqiUseCase = GetAqiForCurrentLocationUseCase(repository, GridCalculator)
         val assessUseCase = AssessRunningSuitabilityUseCase()
-        ViewModelFactory(getAqiUseCase, assessUseCase)
+        val database = AppDatabase.getDatabase(applicationContext)
+
+        ViewModelFactory(getAqiUseCase, assessUseCase, database.userDao())
     }
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -54,7 +57,6 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // FIX: This now calls the Navigation Hub, not just the Dashboard
                     AeroFitApp(viewModel = viewModel)
                 }
             }
